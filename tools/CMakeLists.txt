@@ -1,0 +1,42 @@
+get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
+get_property(conversion_libs GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
+
+# find_package(ortools CONFIG REQUIRED)
+set(LIBS
+        ${dialect_libs}
+        ${conversion_libs}
+        MLIROptLib
+        MLIRPass
+        MLIRSam
+        MLIRTransforms
+        MLIRIR
+        StreamParallelizer
+        StreamVectorizer
+        LinalgToSam
+        ProtoEmitter
+        MLIRRegisterAllDialects
+        MLIRRegisterAllPasses
+)
+
+add_llvm_executable(sam-opt PARTIAL_SOURCES_INTENDED sam-opt.cpp)
+add_llvm_executable(sam-translate PARTIAL_SOURCES_INTENDED sam-translate.cpp)
+
+llvm_update_compile_flags(sam-opt)
+llvm_update_compile_flags(sam-translate)
+
+# target_link_libraries(sam-opt PRIVATE ${LIBS})
+target_link_libraries(sam-opt PRIVATE ${LIBS}
+        MLIROptLib # MlirOptMain
+        MLIRMlirOptMain # for MlirOptMain()
+        MLIRRegisterAllDialects # defines mlir::registerAllDialects(...)
+        MLIRRegisterAllPasses # defines mlir::registerAllPasses(...)
+)
+target_link_libraries(sam-translate PRIVATE ${LIBS}
+        MLIROptLib # MlirOptMain
+        MLIRMlirOptMain # for MlirOptMain()
+        MLIRRegisterAllDialects # defines mlir::registerAllDialects(...)
+        MLIRRegisterAllPasses # defines mlir::registerAllPasses(...)
+)
+
+mlir_check_all_link_libraries(sam-opt)
+mlir_check_all_link_libraries(sam-translate)
