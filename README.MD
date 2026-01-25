@@ -1,4 +1,4 @@
-# The Sparse Abstract Machine for Machine Learning (SAMML)
+# The FuseFlow Compiler
 ## Prerequisites
 - Initialize submodules in external directory (llvm-project, or-tools) 
 ```shell
