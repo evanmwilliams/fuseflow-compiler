@@ -5,8 +5,10 @@
 #include "lib/Conversion/SparseToSam/LinalgToSam.h"
 #include "lib/Conversion/SparseToSam/Table.h"
 
+#include <iostream>
 #include <memory>
 #include <utility>
+#include <filesystem>
 
 #include "FusedCIN.h"
 #include "lib/Dialect/SAM/SamDialect.h"
@@ -29,6 +31,8 @@
 
 #include "ConstructEinsum.h"
 #include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
+
+#include "toml.hpp"
 
 namespace mlir
 {
@@ -1003,6 +1007,19 @@ void insertJoiners(Table &finalTable, const std::shared_ptr<AnalysisScope> &scop
     }
 }
 
+static std::string formatLoopOrder(const std::vector<IndexVar>& order) {
+    std::ostringstream oss;
+    for (size_t i = 0; i < order.size(); ++i) {
+        if (i) oss << ' ';
+        oss << order[i]; // prints like i0, i1, ...
+    }
+    return oss.str();
+}
+
+static std::string getMlirModuleName(const std::string& mlirPath) {
+    return std::filesystem::path(mlirPath).stem().string();
+}
+
 LogicalResult fuseOpsInDispatchGroup(func::FuncOp op,
                                      llvm::DenseMap<mlir::Value, std::shared_ptr<FusedCIN>> &metastageMap,
                                      const std::shared_ptr<AnalysisScope> &scope, StageRewriter &rewriter,
@@ -1136,9 +1153,60 @@ LogicalResult fuseOpsInDispatchGroup(func::FuncOp op,
     // std::cout << "Loop Order: " << std::endl;
     // for (auto loop : loopOrder)
     // {
-    // std::cout << loop << std::endl;
+    //     std::cout << loop << std::endl;
     // }
     scope->effLoopOrder = loopOrder;
+
+    toml::table doc;
+    std::string module_name;
+    if (auto flc = llvm::dyn_cast<mlir::FileLineColLoc>(op.getLoc())) {
+        module_name = flc.getFilename().str();
+    }
+
+    // Create/obtain the array-of-tables: [[Prop]]
+    toml::array& prop = *doc.insert("Prop", toml::array{}).first->second.as_array();
+
+    auto add_prop = [&](std::string name,
+                        std::string path,
+                        std::optional<int> num_loops,
+                        std::optional<std::string> order) {
+        toml::table entry;
+
+        entry.insert("name", std::move(name));
+
+        toml::table args;
+        args.insert("path", std::move(path));
+        if (num_loops) args.insert("num_loops", *num_loops);
+        if (order)     args.insert("order", *order);
+
+        entry.insert("args", std::move(args));
+
+        prop.push_back(std::move(entry));
+    };
+
+    add_prop("P_MlirProgram", module_name, loopOrder.size(), std::nullopt);
+    std::vector<std::vector<IndexVar>> allLoopOrders = scope->getAllLoopOrders();
+    for (auto loopOrder : allLoopOrders) {
+        add_prop(
+            "P_LoopOrderOption", 
+            module_name, 
+            std::nullopt, 
+            formatLoopOrder(loopOrder)
+        );
+    }
+    // add_prop("P_LoopOrderOption", "nested_matmuls.mlir", std::nullopt, "i0 i1 i2 i3");
+    // add_prop("P_LoopOrderOption", "nested_matmuls.mlir", std::nullopt, "i0 i2 i1 i3");
+
+    // [Goal]
+    toml::table goal;
+    goal.insert("name", "FuseFlowSchedule");
+    goal.insert("args", toml::table{}); // args = {}
+    doc.insert("Goal", std::move(goal));
+
+    // Write to file
+    std::ofstream out(getMlirModuleName(module_name) + ".hb.toml");
+    out << doc;                 // toml++ streams as TOML
+    out.close();
 
     // Get loops in the scope of every tensor, this allows us to ignore reduction variables from different paths
     auto red = returnedTensorView.getScopedLoops();
