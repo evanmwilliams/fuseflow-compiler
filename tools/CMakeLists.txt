@@ -12,6 +12,8 @@ set(LIBS
         MLIRIR
         StreamParallelizer
         StreamVectorizer
+        Interactive
+        SparseAnnotate
         LinalgToSam
         ProtoEmitter
         MLIRRegisterAllDialects

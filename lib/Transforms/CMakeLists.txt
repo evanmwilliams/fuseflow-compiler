@@ -1,2 +1,4 @@
 add_subdirectory(StreamParallelizer)
 add_subdirectory(StreamVectorizer)
+add_subdirectory(Interactive)
+add_subdirectory(SparseAnnotate)

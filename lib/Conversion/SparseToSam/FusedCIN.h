@@ -362,6 +362,14 @@ public:
 
     explicit AnalysisScope(bool useUserInput) : indexCounter(0), logicalIndexCounter(0), useUserInput(useUserInput) {};
 
+    void setHoneybeeConfig(llvm::StringRef binary, llvm::StringRef libraryPath,
+                           llvm::StringRef outputDirectory) {
+        honeybeeBinary = binary.str();
+        honeybeeLibrary = libraryPath.str();
+        honeybeeOutputDir = outputDirectory.str();
+        useHoneybee = !binary.empty() && !libraryPath.empty() && !outputDirectory.empty();
+    }
+
     [[nodiscard]] int getId() const { return indexCounter; }
 
     UniqueVar getNewUniqueVar(const std::shared_ptr<FusedCIN> &tensor);
@@ -380,7 +388,7 @@ public:
 
     [[nodiscard]] int getNumSets() const { return equalityGraphComponents.GetNumberOfComponents(); }
 
-    std::vector<IndexVar> getLoopOrder();
+    std::vector<IndexVar> getLoopOrder(mlir::Operation *op = nullptr);
 
     std::vector<std::vector<IndexVar>> getAllLoopOrders();
 
@@ -462,6 +470,11 @@ private:
     llvm::SmallVector<UniqueVar> vars;
     llvm::SmallVector<mlir::AffineExpr> loopOrder;
     bool useUserInput;
+
+    bool useHoneybee{false};
+    std::string honeybeeBinary;
+    std::string honeybeeLibrary;
+    std::string honeybeeOutputDir;
 };
 
 template <typename T>

@@ -31,10 +31,26 @@ namespace mlir {
                 llvm::cl::desc(
                         "Calculate the number of flops and bytes accessed and print out both."),
                 llvm::cl::init(false)};
+        PassOptions::Option<std::string> honeybee{
+                *this, "honeybee",
+                llvm::cl::desc("Path to the Honeybee CLI binary. When set with library and output-dir, "
+                               "loop-order selection is driven by Honeybee."),
+                llvm::cl::init("")};
+        PassOptions::Option<std::string> library{
+                *this, "library",
+                llvm::cl::desc("Path to the dataflow_order.hblib.toml library file."),
+                llvm::cl::init("")};
+        PassOptions::Option<std::string> outputDir{
+                *this, "output-dir",
+                llvm::cl::desc("Directory for per-op Honeybee session subdirs and loop_order.json files."),
+                llvm::cl::init("")};
     };
 
     /// Create a pass to convert Linalg operations to the SAMML dialect.
-    std::unique_ptr<mlir::Pass> createLinalgToSamPass(bool useUserInput, bool calculateHeuristic);
+    std::unique_ptr<mlir::Pass> createLinalgToSamPass(bool useUserInput, bool calculateHeuristic,
+                                                      llvm::StringRef honeybee = "",
+                                                      llvm::StringRef library = "",
+                                                      llvm::StringRef outputDir = "");
 
     std::unique_ptr<mlir::Pass> createFusionDispatchGroupsPass();
 

@@ -8,6 +8,8 @@
 
 #include "lib/Conversion/SparseToSam/LinalgToSam.h"
 #include "lib/Dialect/SAM/SamDialect.h"
+#include "lib/Transforms/Interactive/Passes.h"
+#include "lib/Transforms/SparseAnnotate/Passes.h"
 #include "lib/Transforms/StreamParallelizer/Passes.h"
 #include "lib/Transforms/StreamVectorizer/Passes.h"
 #include "mlir/Transforms/Passes.h"
@@ -20,6 +22,8 @@ int main(int argc, char **argv)
 
     mlir::sam::registerStreamVectorizerPipeline();
     mlir::sam::registerStreamParallelizerPipeline();
+    mlir::sam::registerInteractivePipeline();
+    mlir::sam::registerSparseAnnotatePipeline();
 
     mlir::PassPipelineRegistration<> pipeline1(
         "uninline-ops", "Uninlines ops into separate functions along with their inputs",
@@ -32,7 +36,8 @@ int main(int argc, char **argv)
             // pm.addPass(mlir::createFusionDispatchGroupsPass());
             pm.addNestedPass<mlir::func::FuncOp>(mlir::createConvertFillOpsPass());
             pm.addNestedPass<mlir::func::FuncOp>(
-                mlir::createLinalgToSamPass(options.useUserInput, options.getHeuristic));
+                mlir::createLinalgToSamPass(options.useUserInput, options.getHeuristic,
+                                            options.honeybee, options.library, options.outputDir));
 
             pm.addPass(mlir::createCanonicalizerPass());
             pm.addPass(mlir::createCSEPass());

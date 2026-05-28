@@ -1132,7 +1132,7 @@ LogicalResult fuseOpsInDispatchGroup(func::FuncOp op,
     // Construct lowering table where each cell in the table stores lambdas representing pipelines for computing SAM
     // reference/coord pairs for each logical index var for each tensor view as well as how to compute every value for
     // every tensor view in the program including the output/intermediate tensors
-    std::vector<IndexVar> loopOrder = scope->getLoopOrder();
+    std::vector<IndexVar> loopOrder = scope->getLoopOrder(op.getOperation());
     // std::cout << "Loop Order: " << std::endl;
     // for (auto loop : loopOrder)
     // {
@@ -4005,10 +4005,18 @@ class LinalgToSamPass : public mlir::impl::LinalgToSamBase<LinalgToSamPass>
 private:
     bool useUserInput;
     bool calculateHeuristic;
+    std::string honeybeeBin;
+    std::string honeybeeLibrary;
+    std::string honeybeeOutputDir;
 
 public:
-    explicit LinalgToSamPass(bool useUserInput, bool calculateHeuristic) :
-        useUserInput(useUserInput), calculateHeuristic(calculateHeuristic)
+    explicit LinalgToSamPass(bool useUserInput, bool calculateHeuristic,
+                             llvm::StringRef honeybeeBin = "",
+                             llvm::StringRef honeybeeLibrary = "",
+                             llvm::StringRef honeybeeOutputDir = "") :
+        useUserInput(useUserInput), calculateHeuristic(calculateHeuristic),
+        honeybeeBin(honeybeeBin.str()), honeybeeLibrary(honeybeeLibrary.str()),
+        honeybeeOutputDir(honeybeeOutputDir.str())
     {
     }
 };
@@ -4035,6 +4043,9 @@ void LinalgToSamPass::runOnOperation()
     llvm::SmallVector<mlir::Value> tensorLst;
 
     const auto scope = std::make_shared<AnalysisScope>(useUserInput);
+    if (!honeybeeBin.empty() && !honeybeeLibrary.empty() && !honeybeeOutputDir.empty()) {
+        scope->setHoneybeeConfig(honeybeeBin, honeybeeLibrary, honeybeeOutputDir);
+    }
 
     // Construct input lambdas for input arguments
     auto context = func.getContext();
@@ -4082,7 +4093,11 @@ void LinalgToSamPass::runOnOperation()
         return signalPassFailure();
 }
 
-std::unique_ptr<mlir::Pass> mlir::createLinalgToSamPass(bool useUserInput, bool calculateHeuristic)
+std::unique_ptr<mlir::Pass> mlir::createLinalgToSamPass(bool useUserInput, bool calculateHeuristic,
+                                                        llvm::StringRef honeybee,
+                                                        llvm::StringRef library,
+                                                        llvm::StringRef outputDir)
 {
-    return std::make_unique<LinalgToSamPass>(useUserInput, calculateHeuristic);
+    return std::make_unique<LinalgToSamPass>(useUserInput, calculateHeuristic,
+                                              honeybee, library, outputDir);
 }
